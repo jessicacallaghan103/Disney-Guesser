@@ -1331,6 +1331,51 @@
             makeGuess();
         });
 
+        // Helper function to check exact matches with order-independent handling for slash-separated values
+        function isExactMatch(value, targetValue) {
+            // Simple exact match first
+            if (value === targetValue) {
+                return true;
+            }
+            
+            // For slash-separated values (like outfit colors), normalize by sorting
+            if (value.includes('/') && targetValue.includes('/')) {
+                const valueParts = value.split('/').map(s => s.trim().toLowerCase()).sort();
+                const targetParts = targetValue.split('/').map(s => s.trim().toLowerCase()).sort();
+                
+                // Check if they have the same parts (order doesn't matter)
+                if (valueParts.length === targetParts.length) {
+                    return valueParts.every((part, index) => part === targetParts[index]);
+                }
+            }
+            
+            return false;
+        }
+
+        // Helper function to check partial matches (especially for colors with slashes)
+        function checkPartialMatch(value, targetValue) {
+            // First check simple substring inclusion
+            if (value.includes(targetValue) || targetValue.includes(value)) {
+                return true;
+            }
+            
+            // For outfit colors (and other slash-separated values), split and check for common elements
+            const valueParts = value.split('/').map(s => s.trim().toLowerCase());
+            const targetParts = targetValue.split('/').map(s => s.trim().toLowerCase());
+            
+            // Check if any part matches between the two
+            for (let vPart of valueParts) {
+                for (let tPart of targetParts) {
+                    // Exact match or substring match (to handle "Yellow or Gold" matching "Gold")
+                    if (vPart === tPart || vPart.includes(tPart) || tPart.includes(vPart)) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
         // 3. THE GUESSING LOGIC
         function makeGuess() {
             const input = document.getElementById('guessInput');
@@ -1371,12 +1416,12 @@
 
                 // LOGIC: Check matches
                 
-                // EXACT MATCH (Green)
-                if (value === targetValue) {
+                // EXACT MATCH (Green) - including order-independent matching for slash-separated values
+                if (isExactMatch(String(value), String(targetValue))) {
                     tile.classList.add('correct');
                 } 
-                // PARTIAL MATCH (Yellow) - Checks if one includes the other (e.g. "Toy/Bear" vs "Bear")
-                else if (String(value).includes(String(targetValue)) || String(targetValue).includes(String(value))) {
+                // PARTIAL MATCH (Yellow) - Check for overlapping colors or substring matches
+                else if (checkPartialMatch(String(value), String(targetValue))) {
                     tile.classList.add('partial');
                 }
                 // WRONG (Red)
