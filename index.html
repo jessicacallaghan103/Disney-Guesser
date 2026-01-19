@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DisneyGuesser</title>
+    <style>
+        /* --- CSS STYLES ( The Look ) --- */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121213; /* Dark Mode Background */
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; }
+
+        /* The Search Bar Area */
+        .search-container {
+            margin-bottom: 20px;
+            position: relative;
+            display: inline-block;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #538d4e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* The Game Grid */
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            max-width: 1000px;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+
+        /* The Header Row */
+        .header-row {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr); /* 1 for Image + 7 categories */
+            gap: 5px;
+            width: 100%;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* A Single Guess Row */
+        .guess-row {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            width: 100%;
+            animation: fadeIn 0.5s;
+        }
+
+        /* The Squares */
+        .tile {
+            aspect-ratio: 1; /* Perfect square */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #3a3a3c; /* Default Grey */
+            border: 1px solid #555;
+            font-size: 12px;
+            padding: 2px;
+            word-wrap: break-word;
+            flex-direction: column;
+            min-width: 60px;
+        }
+
+        /* Mobile scrollable layout */
+        @media (max-width: 1024px) {
+            .game-board {
+                max-width: 100%;
+            }
+
+            .header-row,
+            .guess-row {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 10px;
+            }
+
+            .tile {
+                min-width: 50px;
+                flex-shrink: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tile {
+                min-width: 45px;
+                font-size: 10px;
+            }
+        }
+
+        /* Feedback Colors */
+        .correct { background-color: #538d4e; border-color: #538d4e; } /* Green */
+        .partial { background-color: #b59f3b; border-color: #b59f3b; } /* Yellow */
+        .wrong { background-color: #cf3838; border-color: #cf3838; }   /* Red */
+
+        /* Animation for making it look smooth */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Gravity falling animation */
+        @keyframes gravityFall {
+            0% {
+                opacity: 0;
+                transform: translateY(-1000px);
+            }
+            85% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            90% {
+                transform: translateY(-20px);
+            }
+            95% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        /* Small Image styling */
+        .char-img { width: auto; height: 100%; border-radius: 20%; object-fit: cover; }
+
+        /* Victory Modal */
+        .victory-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .victory-modal.show {
+            display: flex;
+        }
+
+        .victory-content {
+            background-color: #1e1e1e;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            border: 3px solid #538d4e;
+            box-shadow: 0 0 20px rgba(83, 141, 78, 0.5);
+            animation: gravityFall 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .victory-content h2 {
+            font-size: 48px;
+            color: #538d4e;
+            margin: 0 0 20px 0;
+        }
+
+        .victory-content p {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+
+        .victory-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 20px auto;
+            border: 3px solid #538d4e;
+        }
+
+        .victory-button {
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background-color: #538d4e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .victory-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>DisneyGuesser</h1>
+    <p>Guess the character!</p>
+
+    <div class="search-container">
+        <input type="text" id="guessInput" placeholder="Type a character name..." list="charList">
+        <datalist id="charList">
+            </datalist>
+        <button onclick="makeGuess()">Guess</button>
+    </div>
+
+    <div class="victory-modal" id="victoryModal">
+        <div class="victory-content">
+            <h2>🎉 YOU WON! 🎉</h2>
+            <img id="victoryImage" class="victory-image" src="" alt="Character">
+            <p id="victoryCharName"></p>
+            <button class="victory-button" onclick="playAgain()">Play Again</button>
+        </div>
+    </div>
+
+    <div class="game-board" id="gameBoard">
+        <div class="header-row">
+            <div>Character</div>
+            <div>Gender</div>
+            <div>Species</div>
+            <div>Skin/Fur Color</div>
+            <div>Outfit Color</div>
+            <div>Source</div>
+            <div>Studio</div>
+            <div>Debut Year</div>
+        </div>
+        </div>
+
+    <script>
+        /* --- JAVASCRIPT ( The Brains ) --- */
+
+        // 1. THE DATABASE
+        // You will add your characters here!
+        const characters = [
+            {
+                name: "Aladdin",
+                gender: "M",
+                species: "Human",
+                skin: "Tan",
+                outfit: "Purple / White",
+                source: "Film",
+                studio: "WDAS",
+                year: 1992,
+                image: "https://static.wikia.nocookie.net/disney/images/b/bb/Profile_-_Aladdin.png/revision/latest/scale-to-width-down/1031?cb=20250208025416" 
+            },
+            {
+                name: "Stitch",
+                gender: "M",
+                species: "Alien",
+                skin: "Blue",
+                outfit: "None",
+                source: "Film",
+                studio: "WDAS",
+                year: 2002,
+                image: "https://upload.wikimedia.org/wikipedia/en/d/d2/Stitch_%28Lilo_%26_Stitch%29.svg"
+            },
+            {
+                name: "Duffy",
+                gender: "M",
+                species: "Toy / Bear",
+                skin: "Brown",
+                outfit: "White",
+                source: "Park",
+                studio: "WDI",
+                year: 2002,
+                image: "https://static.wikia.nocookie.net/disney/images/7/7d/Duffy_the_Disney_Bear_.jpg/revision/latest?cb=20201211025444"
+            },
+             {
+                name: "Cinderella",
+                gender: "F",
+                species: "Human",
+                skin: "Beige",
+                outfit: "Blue",
+                source: "Film",
+                studio: "WDAS",
+                year: 1950,
+                image: "https://static.wikia.nocookie.net/disney/images/e/e5/Profile_-_Cinderella.jpeg/revision/latest/scale-to-width-down/1032?cb=20250921175011"
+            },
+{
+                name: "Snow White",
+                gender: "F",
+                species: "Human",
+                skin: "Beige",
+                outfit: "Blue / Red / Yellow or Gold",
+                source: "Film",
+                studio: "WDAS",
+                year: 1937,
+                image: "https://static.wikia.nocookie.net/disney/images/3/33/Profile_-_Snow_White.jpeg/revision/latest/scale-to-width-down/1032?cb=20251202080128"
+            },
+
+{
+        name: "The Evil Queen",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Black / Purple",
+        year: 1937,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/89/Profile_-_The_Evil_Queen.jpeg/revision/latest/scale-to-width-down/1032?cb=20251201224608"
+    },
+{
+        name: "Pinocchio",
+        gender: "M",
+        species: "Puppet / Human",
+        skin: "Beige",
+        outfit: "Red / Yellow or Gold",
+        year: 1940,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/9/9b/Profile_-_Pinocchio.jpeg/revision/latest?cb=20190312063307"
+    },
+{
+        name: "Mickey Mouse",
+        gender: "M",
+        species: "Mouse",
+        skin: "Black",
+        outfit: "Red",
+        year: 1928,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/2/2e/Disney_Mickey_Mouse.png/revision/latest/scale-to-width-down/1032?cb=20250301192111"
+    },
+{
+        name: "Minnie Mouse",
+        gender: "F",
+        species: "Mouse",
+        skin: "Black",
+        outfit: "Red",
+        year: 1928,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/6/67/Minnie_Mouse.png/revision/latest/scale-to-width-down/1032?cb=20251231222653"
+    },
+{
+        name: "Goofy",
+        gender: "M",
+        species: "Dog",
+        skin: "Black",
+        outfit: "Blue / Green / Orange",
+        year: 1932,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/e/e5/Goofy.png/revision/latest/scale-to-width-down/1032?cb=20250827192413"
+    },
+{
+        name: "Donald Duck",
+        gender: "M",
+        species: "Duck",
+        skin: "White",
+        outfit: "Blue",
+        year: 1934,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/a/ab/Donald_Duck_Disney_1.png/revision/latest?cb=20180828172632"
+    },
+{
+        name: "Daisy Duck",
+        gender: "F",
+        species: "Duck",
+        skin: "White",
+        outfit: "Purple",
+        year: 1940,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/c/c9/Classic_Daisy_Duck.png/revision/latest?cb=20250306042726"
+    },
+{
+        name: "Pluto",
+        gender: "M",
+        species: "Dog",
+        skin: "Yellow or Gold",
+        outfit: "None",
+        year: 1930,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/1/13/Pluto_the_pup.png/revision/latest/scale-to-width-down/1032?cb=20240613035106"
+    },
+{
+        name: "Chip and Dale",
+        gender: "M",
+        species: "Chipmunk",
+        skin: "Brown",
+        outfit: "None",
+        year: 1943,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/3/35/ChipAndDale.png/revision/latest/scale-to-width-down/1032?cb=20240719200002"
+    },
+{
+        name: "Huey, Dewey, and Louie",
+        gender: "M",
+        species: "Duck",
+        skin: "White",
+        outfit: "Blue / Green / Red",
+        year: 1938,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/4/43/Huey_Dewey_Louie_artwork.jpg/revision/latest?cb=20130601154411"
+    },
+{
+        name: "Jiminy Cricket",
+        gender: "M",
+        species: "Cricket",
+        skin: "Green",
+        outfit: "Black / Blue / Orange",
+        year: 1940,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/f/f0/Profile_-_Jiminy_Cricket.jpeg/revision/latest?cb=20190312063605"
+    },
+{
+        name: "Dumbo",
+        gender: "M",
+        species: "Elephant",
+        skin: "Grey or Silver",
+        outfit: "None",
+        year: 1941,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/e/e2/Profile_-_Dumbo.jpg/revision/latest/scale-to-width-down/1032?cb=20240516075947"
+    },
+{
+        name: "Timothy Q. Mouse",
+        gender: "M",
+        species: "Mouse",
+        skin: "Brown",
+        outfit: "Red",
+        year: 1941,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/5/5a/Profile_-_Timothy_Q._Mouse.jpg/revision/latest?cb=20190316165315"
+    },
+{
+        name: "Bambi",
+        gender: "M",
+        species: "Deer",
+        skin: "Brown",
+        outfit: "None",
+        year: 1942,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/ce/Profile_-_Bambi.png/revision/latest/scale-to-width-down/1031?cb=20190313173158"
+    },
+{
+        name: "Thumper",
+        gender: "M",
+        species: "Rabbit",
+        skin: "Gray",
+        outfit: "None",
+        year: 1942,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/1/16/Profile_-_Thumper.png/revision/latest?cb=20240626211553"
+    },
+{
+        name: "Flower",
+        gender: "M",
+        species: "Skunk",
+        skin: "Black / White",
+        outfit: "None",
+        year: 1942,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/2/25/Profile_-_Flower.png/revision/latest?cb=20190313173357"
+    },
+{
+        name: "Prince Charming",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Red / White",
+        year: 1950,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/4/47/Cinderella-disneyscreencaps_com-6140.jpg/revision/latest/scale-to-width-down/250?cb=20250912070613"
+    },
+{
+        name: "Lady Tremaine",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Red",
+        year: 1950,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/4/42/Profile_-_Lady_Tremaine.jpeg/revision/latest?cb=20250921175137"
+    },
+{
+        name: "Jaques",
+        gender: "M",
+        species: "Mouse",
+        skin: "Brown",
+        outfit: "Red",
+        year: 1950,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disneycinderella/images/3/30/Clipjaqhap.gif/revision/latest?cb=20121001053154"
+    },
+{
+        name: "Gus",
+        gender: "M",
+        species: "Mouse",
+        skin: "Brown",
+        outfit: "Yellow or Gold",
+        year: 1950,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://preview.redd.it/3rz9n77y8u901.png?width=1080&crop=smart&auto=webp&s=c9737c010ec9d854dadf532c778c7297fba71a48"
+    },
+{
+        name: "Alice",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Blue",
+        year: 1951,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/7/75/Profile_-_Alice.jpeg/revision/latest?cb=20250104014515"
+    },
+{
+        name: "The Mad Hatter",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Green",
+        year: 1951,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/1/19/Profile_-_Mad_Hatter.jpeg/revision/latest?cb=20190702020429"
+    },
+{
+        name: "The White Rabbit",
+        gender: "M",
+        species: "Rabbit",
+        skin: "White",
+        outfit: "Red / Yellow or Gold",
+        year: 1951,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/0/0f/Profile_-_White_Rabbit.jpeg/revision/latest?cb=20190314055534"
+    },
+{
+        name: "Cheshire Cat",
+        gender: "M",
+        species: "Cat",
+        skin: "Pink / Purple",
+        outfit: "None",
+        year: 1951,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/8e/DisneyCheshireCat.jpg/revision/latest/scale-to-width-down/1030?cb=20190228152714"
+    },
+{
+        name: "Peter Pan",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Green",
+        year: 1953,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/5/5e/Profile_-_Peter_Pan.jpeg/revision/latest?cb=20190312151341"
+    },
+{
+        name: "Wendy",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Blue",
+        year: 1953,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/5/53/Profile_-_Wendy_Darling.jpeg/revision/latest?cb=20190312151612"
+    },
+{
+        name: "Captain Hook",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Red",
+        year: 1953,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/0/0b/Profile_-_Captain_Hook.jpeg/revision/latest/scale-to-width-down/1032?cb=20251210030124"
+    },
+{
+        name: "Smee",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Blue / White",
+        year: 1953,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/6/6f/Mr._Smee_Profile.jpg/revision/latest?cb=20160618052439"
+    },
+{
+        name: "Lady",
+        gender: "F",
+        species: "Dog",
+        skin: "Brown",
+        outfit: "None",
+        year: 1955,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/0/06/Profile_-_Lady.jpeg/revision/latest?cb=20190314123153"
+    },
+{
+        name: "Tramp",
+        gender: "M",
+        species: "Dog",
+        skin: "Gray or Silver",
+        outfit: "None",
+        year: 1955,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/f/fb/Profile_-_Tramp.jpeg/revision/latest?cb=20190314123412"
+    },
+{
+        name: "Aurora",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Pink",
+        year: 1959,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/2/2a/Profile_-_Aurora.jpeg/revision/latest?cb=20190312035101"
+    },
+{
+        name: "Maleficent",
+        gender: "F",
+        species: "Fairy",
+        skin: "Green",
+        outfit: "Black / Purple",
+        year: 1959,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/0/05/Profile_-_Maleficent.jpeg/revision/latest?cb=20250118085922"
+    },
+{
+        name: "Prince Phillip",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Brown / Red",
+        year: 1959,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/86/Profile_-_Prince_Phillip.png/revision/latest?cb=20190312121844"
+    },
+{
+        name: "Merlin",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Blue",
+        year: 1963,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/e/ee/Merlin_Sword_in_the_Stone.jpeg/revision/latest?cb=20190201105709"
+    },
+{
+        name: "Arthur",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Brown",
+        year: 1963,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/a/a3/Profile_-_Arthur_Pendragon.png/revision/latest?cb=20190830032522"
+    },
+{
+        name: "Mary Poppins",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Red / White",
+        year: 1964,
+        studio: "WDP",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/b/be/Mary_Poppins8.jpg/revision/latest/scale-to-width-down/1000?cb=20180919171520"
+    },
+{
+        name: "Bert",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Black",
+        year: 1964,
+        studio: "WDP",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/8c/Bert.jpg/revision/latest?cb=20160212082942"
+    },
+{
+        name: "Mowgli",
+        gender: "M",
+        species: "Human",
+        skin: "Tan",
+        outfit: "Red",
+        year: 1967,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/3/3a/Profile_-_Mowgli.jpeg/revision/latest?cb=20210906112320"
+    },
+{
+        name: "Baloo",
+        gender: "M",
+        species: "Bear",
+        skin: "Gray or Silver",
+        outfit: "None",
+        year: 1967,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/3/31/Profile_-_Baloo.jpeg/revision/latest?cb=20190712012558"
+    },
+{
+        name: "Bagheera",
+        gender: "M",
+        species: "Leopard",
+        skin: "Black",
+        outfit: "None",
+        year: 1967,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/5/5c/Profile_-_Bagheera.jpeg/revision/latest?cb=20190312124853"
+    },
+{
+        name: "Shere Khan",
+        gender: "M",
+        species: "Tiger",
+        skin: "Black / Orange",
+        outfit: "None",
+        year: 1967,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/9/93/Profile_-_Shere_Khan.jpeg/revision/latest?cb=20190312124650"
+    },
+{
+        name: "Marie",
+        gender: "F",
+        species: "Cat",
+        skin: "White",
+        outfit: "None",
+        year: 1970,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/8f/Profile_-_Marie.jpeg/revision/latest?cb=20190426045821"
+    },
+{
+        name: "Thomas O'Malley",
+        gender: "M",
+        species: "Cat",
+        skin: "Orange",
+        outfit: "None",
+        year: 1970,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/7/70/Profile_-_Thomas_O%27_Malley.jpeg/revision/latest?cb=20250323022628"
+    },
+{
+        name: "Robin Hood",
+        gender: "M",
+        species: "Fox",
+        skin: "Orange",
+        outfit: "Green",
+        year: 1973,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/4/42/Robin_Hood_Disney.jpg/revision/latest?cb=20160706144649"
+    },
+{
+        name: "Little John",
+        gender: "M",
+        species: "Bear",
+        skin: "Brown",
+        outfit: "Green",
+        year: 1973,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/cc/Little_John.jpg/revision/latest?cb=20160706142503"
+    },
+{
+        name: "Prince John",
+        gender: "M",
+        species: "Lion",
+        skin: "Yellow or Gold",
+        outfit: "Blue / Red",
+        year: 1973,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/2/29/Robin-hood-1080p-disneyscreencaps.com-796.webp/revision/latest/scale-to-width-down/1000?cb=20241021214804"
+    },
+{
+        name: "Maid Marian",
+        gender: "F",
+        species: "Fox",
+        skin: "Orange",
+        outfit: "Purple",
+        year: 1973,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/b/b8/Maid_Marian.jpg/revision/latest?cb=20160706142025"
+    },
+{
+        name: "Winnie-the-Pooh",
+        gender: "M",
+        species: "Toy / Bear",
+        skin: "Yellow or Gold",
+        outfit: "Red",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/0/03/Profile_-_Winnie_the_Pooh.png/revision/latest/scale-to-width-down/1032?cb=20250323022729"
+    },
+{
+        name: "Piglet",
+        gender: "M",
+        species: "Toy / Pig",
+        skin: "Pink",
+        outfit: "Pink",
+        year: 1968,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/5/5d/Profile_-_Piglet.png/revision/latest?cb=20190424074931"
+    },
+{
+        name: "Tigger",
+        gender: "M",
+        species: "Toy / Tiger",
+        skin: "Black / Orange",
+        outfit: "None",
+        year: 1968,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/6/60/Profile_-_Tigger.png/revision/latest?cb=20230430081828"
+    },
+{
+        name: "Eeyore",
+        gender: "M",
+        species: "Toy / Donkey",
+        skin: "Gray or Silver",
+        outfit: "None",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/1/1c/Profile_-_Eeyore.png/revision/latest/scale-to-width-down/1031?cb=20210516060155"
+    },
+{
+        name: "Rabbit",
+        gender: "M",
+        species: "Rabbit",
+        skin: "Yellow or Gold",
+        outfit: "None",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/d/da/Profile_-_Rabbit.png/revision/latest?cb=20190424074939"
+    },
+{
+        name: "Owl",
+        gender: "M",
+        species: "Owl",
+        skin: "Brown",
+        outfit: "None",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/e/e4/Profile_-_Owl.jpeg/revision/latest/scale-to-width-down/1031?cb=20210516060227"
+    },
+{
+        name: "Roo",
+        gender: "M",
+        species: "Toy / Kangaroo",
+        skin: "Brown",
+        outfit: "Blue",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/1/1e/Roo-TheManyAdventuresOfWinnieThePooh-2.jpg/revision/latest/scale-to-width-down/1000?cb=20230523162159"
+    },
+{
+        name: "Christopher Robin",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Blue / Yellow or Gold",
+        year: 1966,
+        studio: "WDAS",
+        source: "Short",
+        image: "https://static.wikia.nocookie.net/disney/images/d/d5/Christopher_Robin_Pooh.jpg/revision/latest?cb=20160606191932"
+    },
+{
+        name: "Lumpy",
+        gender: "M",
+        species: "Toy / Elephant",
+        skin: "Purple",
+        outfit: "None",
+        year: 2005,
+        studio: "DTS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/e/ed/Profile_-_Lumpy.jpg/revision/latest?cb=20250811110632"
+    },
+{
+        name: "Bernard",
+        gender: "M",
+        species: "Mouse",
+        skin: "Gray",
+        outfit: "Red",
+        year: 1977,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/b/b4/Bernard.png/revision/latest/scale-to-width-down/1030?cb=20160709091608"
+    },
+{
+        name: "Miss Bianca",
+        gender: "F",
+        species: "Mouse",
+        skin: "White",
+        outfit: "Purple",
+        year: 1977,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/f/f6/Miss_Bianca.png/revision/latest/scale-to-width-down/1032?cb=20160709091829"
+    },
+{
+        name: "Elliot",
+        gender: "M",
+        species: "Dragon",
+        skin: "Green",
+        outfit: "None",
+        year: 1977,
+        studio: "WDP",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/b/bd/Elliott.png/revision/latest?cb=20160719174844"
+    },
+{
+        name: "Tod",
+        gender: "M",
+        species: "Fox",
+        skin: "Orange",
+        outfit: "None",
+        year: 1981,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/c3/Profile_-_Tod.png/revision/latest/scale-to-width-down/1032?cb=20190401180556"
+    },
+{
+        name: "Copper",
+        gender: "M",
+        species: "Dog",
+        skin: "Brown",
+        outfit: "None",
+        year: 1981,
+        studio: "WDAS",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/cf/Profile_-_Copper.png/revision/latest?cb=20190401180729"
+    },
+{
+        name: "Kermit the Frog",
+        gender: "M",
+        species: "Frog",
+        skin: "Green",
+        outfit: "None",
+        year: 1955,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/e/e3/Profile_-_Kermit_the_Frog.png/revision/latest/scale-to-width-down/1031?cb=20251204031507"
+    },
+{
+        name: "Fozzie Bear",
+        gender: "M",
+        species: "Bear",
+        skin: "Orange",
+        outfit: "None",
+        year: 1976,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/a/ad/Profile_-_Fozzie_Bear.png/revision/latest?cb=20241015174227"
+    },
+{
+        name: "Miss Piggy",
+        gender: "F",
+        species: "Pig",
+        skin: "Pink",
+        outfit: "Pink / Purple",
+        year: 1976,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/3/33/Miss_Piggy_Icon.jpg/revision/latest?cb=20131204221827"
+    },
+{
+        name: "Gonzo",
+        gender: "M",
+        species: "Alien",
+        skin: "Blue",
+        outfit: "Black / Purple",
+        year: 1976,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/1/15/Gonzo.jpg/revision/latest?cb=20110725143211"
+    },
+{
+        name: "Animal",
+        gender: "M",
+        species: "Monster",
+        skin: "Red",
+        outfit: "Brown / Orange",
+        year: 1976,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/f/ff/357px-Animal_crazed-NEW.png/revision/latest?cb=20111213141015"
+    },
+{
+        name: "Sam Eagle",
+        gender: "M",
+        species: "Bird",
+        skin: "Blue",
+        outfit: "None",
+        year: 1976,
+        studio: "JHP",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/7/78/Sam_the_Eagle.jpg/revision/latest?cb=20210328020253"
+    },
+{
+        name: "Luke Skywalker",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Beige",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/d/dd/LukeSkywalkerLightsaber.jpg/revision/latest/scale-to-width-down/103?cb=20180616201451"
+    },
+{
+        name: "Leia Organa",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "White",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/1/11/Princess_Leia_5.jpg/revision/latest/scale-to-width-down/99?cb=20141214194444"
+    },
+{
+        name: "Darth Vader",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Black",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/80/Profile_-_Darth_Vader.png/revision/latest/scale-to-width-down/1032?cb=20240409170625"
+    },
+{
+        name: "Obi-Wan Kenobi",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Beige / Brown",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/2/24/Top_Ten_Star_Wars_Characters_%28In_movies%29_obiwan.jpg/revision/latest/scale-to-width-down/104?cb=20140505164853"
+    },
+{
+        name: "Han Solo",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Black / White",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/c1/Han_Solo.png/revision/latest/scale-to-width-down/128?cb=20160826210911"
+    },
+{
+        name: "Chewbacca",
+        gender: "M",
+        species: "Wookiee",
+        skin: "Brown",
+        outfit: "None",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/a/ad/Chewbacca_-_TFA.jpg/revision/latest/scale-to-width-down/1032?cb=20241215203914"
+    },
+{
+        name: "Yoda",
+        gender: "M",
+        species: "Alien",
+        skin: "Green",
+        outfit: "Beige / Brown",
+        year: 1980,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/9/98/Profile_-_Yoda.png/revision/latest?cb=20190313134151"
+    },
+{
+        name: "R2-D2",
+        gender: "M",
+        species: "Robot",
+        skin: "Blue / White",
+        outfit: "None",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/e/e9/Profile_-_R2-D2.jpg/revision/latest?cb=20200418144202"
+    },
+{
+        name: "C-3PO",
+        gender: "M",
+        species: "Robot",
+        skin: "Yellow or Gold",
+        outfit: "None",
+        year: 1977,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/c/cc/Profile_-_C-3PO.jpg/revision/latest?cb=20200418144012"
+    },
+{
+        name: "Boba Fett",
+        gender: "M",
+        species: "Human",
+        skin: "Tan",
+        outfit: "Green",
+        year: 1978,
+        studio: "Lucas",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/3/3e/FettbobaJB.png/revision/latest?cb=20120705021851"
+    },
+{
+        name: "Darth Maul",
+        gender: "M",
+        species: "Zabrak",
+        skin: "Black / Red",
+        outfit: "Black",
+        year: 1999,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/6/69/Darth_Maul_Profil.jpg/revision/latest?cb=20190412195159"
+    },
+{
+        name: "Ahsoka Tano",
+        gender: "F",
+        species: "Togruta",
+        skin: "Orange / White",
+        outfit: "Red",
+        year: 2008,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/a/af/Ahsoka_Tano%27s_New_Outfit.jpg/revision/latest?cb=20121212201206"
+    },
+{
+        name: "BB-8",
+        gender: "M",
+        species: "Robot",
+        skin: "Orange / White",
+        outfit: "None",
+        year: 2017,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/8/89/BB-8Fathead.png/revision/latest/scale-to-width-down/1032?cb=20160207010655"
+    },
+{
+        name: "Kylo Ren",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Black",
+        year: 2017,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/d/df/Kylo_Ren_concept_artwork_2.png/revision/latest/scale-to-width-down/96?cb=20150419081212"
+    },
+{
+        name: "Rey",
+        gender: "F",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Beige",
+        year: 2017,
+        studio: "Lucas",
+        source: "Film",
+        image: "https://static.wikia.nocookie.net/disney/images/2/2b/Profile_-_Rey.png/revision/latest/scale-to-width-down/1032?cb=20220711201059"
+    },
+{
+        name: "The Mandalorian",
+        gender: "M",
+        species: "Human",
+        skin: "Beige",
+        outfit: "Gray or Silver",
+        year: 2019,
+        studio: "Lucas",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/a/a4/The_Mandalorian.jpg/revision/latest/scale-to-width-down/1031?cb=20230924192136"
+    },
+{
+        name: "Grogu",
+        gender: "M",
+        species: "Alien",
+        skin: "Green",
+        outfit: "Beige",
+        year: 2019,
+        studio: "Lucas",
+        source: "TV",
+        image: "https://static.wikia.nocookie.net/disney/images/5/5e/Grogu-profile.png/revision/latest/scale-to-width-down/1032?cb=20220219035747"
+    },
+        ];
+
+// --- THE SHORTCUT DICTIONARY ---
+        const expansions = {
+            "WDAS": "Walt Disney Animation Studios",
+            "WDI": "Walt Disney Imagineering",
+            "Pixar": "Pixar Animation Studios",
+            "Lucas": "Lucasfilm",
+            "JHS": "Jim Henson Productions",
+            "Marvel": "Marvel Studios",
+            "disc": "Disney Channel",
+            "disjr": "Playhouse Disney or Disney Junior",
+            "WDP": "Walt Disney Pictures",
+            "DTS": "DisneyToon Studios",
+            "M": "Male",
+            "F": "Female",
+            "TV": "TV Show",
+            "Film": "Feature Film",
+            "Short": "Short Film",
+            "Park": "Theme Park"
+        };
+
+        // Victory Modal Functions
+        function showVictory(character) {
+            document.getElementById('victoryImage').src = character.image;
+            document.getElementById('victoryCharName').textContent = character.name;
+            document.getElementById('victoryModal').classList.add('show');
+        }
+
+        function playAgain() {
+            location.reload();
+        }
+
+        // 2. SETUP THE GAME
+        // For testing, let's pick a Random character every time you refresh.
+        // Later, we can change this to be based on the Date.
+        const targetCharacter = characters[Math.floor(Math.random() * characters.length)];
+        
+        // Console log the answer so you can cheat while testing ;)
+        console.log("The answer is:", targetCharacter.name);
+
+        // Dynamic dropdown list - only show after 3+ characters typed
+        const input = document.getElementById('guessInput');
+        const datalist = document.getElementById('charList');
+
+        input.addEventListener('input', function() {
+            const inputValue = this.value.toLowerCase();
+            
+            // Clear the datalist
+            datalist.innerHTML = '';
+            
+            // Only populate if 3+ characters have been typed
+            if (inputValue.length >= 3) {
+                characters
+                    .filter(char => char.name.toLowerCase().includes(inputValue))
+                    .forEach(char => {
+                        let option = document.createElement('option');
+                        option.value = char.name;
+                        datalist.appendChild(option);
+                    });
+            }
+        });
+
+        // Auto-submit on Enter key or when option is selected
+        input.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                makeGuess();
+            }
+        });
+
+        input.addEventListener('change', function() {
+            // Auto-submit when an option from the datalist is selected
+            makeGuess();
+        });
+
+        // 3. THE GUESSING LOGIC
+        function makeGuess() {
+            const input = document.getElementById('guessInput');
+            const guessName = input.value;
+            
+            // Find the character object based on the name typed
+            const guessChar = characters.find(c => c.name.toLowerCase() === guessName.toLowerCase());
+
+            if (!guessChar) {
+                alert("Character not found in database!");
+                return;
+            }
+
+            // Create a new row
+            const row = document.createElement('div');
+            row.className = 'guess-row';
+
+            // Define the attributes to check (in order of the columns)
+            const attributes = ['gender', 'species', 'skin', 'outfit', 'source', 'studio', 'year'];
+
+            // 1. First Tile: The Image/Name
+            let imgTile = document.createElement('div');
+            imgTile.className = 'tile';
+            imgTile.innerHTML = `<img src="${guessChar.image}" class="char-img" title="${guessChar.name}">`;
+            row.appendChild(imgTile);
+
+            // 2. Loop through the 7 attributes
+            attributes.forEach(attr => {
+                let tile = document.createElement('div');
+                tile.className = 'tile';
+                let value = guessChar[attr];
+                let targetValue = targetCharacter[attr];
+                
+                // CHECK THE DICTIONARY
+            // If the value is in our list (like "WDAS"), use the long name.
+            // If not (like "Blue"), just use the value as is.
+            tile.innerText = expansions[value] || value;
+
+                // LOGIC: Check matches
+                
+                // EXACT MATCH (Green)
+                if (value === targetValue) {
+                    tile.classList.add('correct');
+                } 
+                // PARTIAL MATCH (Yellow) - Checks if one includes the other (e.g. "Toy/Bear" vs "Bear")
+                else if (String(value).includes(String(targetValue)) || String(targetValue).includes(String(value))) {
+                    tile.classList.add('partial');
+                }
+                // WRONG (Red)
+                else {
+                    tile.classList.add('wrong');
+                }
+
+                // SPECIAL LOGIC: The Year Arrow
+                if (attr === 'year' && value !== targetValue) {
+                    if (value < targetValue) {
+                        tile.innerHTML += " ⬆️"; // Guess is too old, go newer
+                    } else {
+                        tile.innerHTML += " ⬇️"; // Guess is too new, go older
+                    }
+                }
+
+                row.appendChild(tile);
+            });
+
+            // Add row to board
+            const board = document.getElementById('gameBoard');
+            // Insert after headers
+            board.insertBefore(row, board.children[1]);
+
+            // Clear input
+            input.value = "";
+
+            // Check Win
+            if (guessChar.name === targetCharacter.name) {
+                showVictory(targetCharacter);
+            }
+        }
+    </script>
+</body>
+</html>
