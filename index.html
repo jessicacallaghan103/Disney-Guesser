@@ -82,11 +82,12 @@
             justify-content: center;
             background-color: #3a3a3c; /* Default Grey */
             border: 1px solid #555;
-            font-size: 12px;
-            padding: 2px;
+            font-size: clamp(7px, 1.5vw, 12px);
+            padding: 4px;
             word-wrap: break-word;
             flex-direction: column;
             min-width: 60px;
+            line-height: 1.2;
         }
 
         /* Mobile scrollable layout */
@@ -103,14 +104,14 @@
             }
 
             .tile {
-                min-width: 50px;
+                min-width: 60px;
                 flex-shrink: 0;
             }
         }
 
         @media (max-width: 480px) {
             .tile {
-                min-width: 45px;
+                min-width: 60px;
                 font-size: 10px;
             }
         }
