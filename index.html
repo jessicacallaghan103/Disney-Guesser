@@ -8,7 +8,7 @@
         /* --- CSS STYLES ( The Look ) --- */
         body {
             font-family: 'Arial', sans-serif;
-            background-image: url('https://slidechef.net/wp-content/uploads/2024/03/disney-cartoons-background-768x432.jpg'); /* Replace with your own image URL */
+            background-image: url('https://wallpapers.com/images/featured-full/disney-has6vy47k75d0bzs.jpg'); /* Replace with your own image URL */
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -19,6 +19,15 @@
         }
 
         h1 { margin-bottom: 10px; }
+
+        /* Translucent Header Background */
+        .header-box {
+            background-color: rgba(0, 0, 0, 0.5); /* Dark navy blue at 50% opacity */
+            padding: 30px 40px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
 
         /* The Search Bar Area */
         .search-container {
@@ -69,6 +78,9 @@
             flex-direction: column;
             border-bottom: 1px solid #333;
             font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.5); /* Dark navy blue at 50% opacity */
+            border-radius: 4px;
+            padding: 10px;
         }
 
         /* A Single Guess Row */
@@ -241,14 +253,16 @@
 </head>
 <body>
 
-    <h1>DisneyGuesser</h1>
-    <p>Guess the character!</p>
+    <div class="header-box">
+        <h1>DisneyGuesser</h1>
+        <p>Guess the character!</p>
 
-    <div class="search-container">
-        <input type="text" id="guessInput" placeholder="Type a character name..." list="charList">
-        <datalist id="charList">
-            </datalist>
-        <button onclick="makeGuess()">Guess</button>
+        <div class="search-container">
+            <input type="text" id="guessInput" placeholder="Type a character name..." list="charList">
+            <datalist id="charList">
+                </datalist>
+            <button onclick="makeGuess()">Guess</button>
+        </div>
     </div>
 
     <div class="victory-modal" id="victoryModal">
